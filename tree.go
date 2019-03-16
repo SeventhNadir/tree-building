@@ -23,72 +23,41 @@ func Build(records []Record) (*Node, error) {
 		return nil, nil
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
+
 	err := errorCheck(records)
 	if err != nil {
 		return nil, err
 	}
 
-	root, err := getRoot(records)
-	if err != nil {
-		return nil, err
-	}
-
-	children := getChildren(root.ID, records)
-	node := Node{root.ID, nil}
-
-	if children != nil {
-		node = Node{root.ID, children}
-	}
-
-	return &node, nil
+	parentChild := getParentChildMap(records)
+	root := &Node{ID: records[0].ID}
+	root.Children = getChildren(root, parentChild)
+	return root, nil
 }
 
-func buildNode(record Record) *Node {
-	node := Node{ID: record.ID}
-	return &node
-}
-
-func getRoot(records []Record) (*Node, error) {
+func getParentChildMap(records []Record) map[int][]*Node {
+	childMap := make(map[int][]*Node)
 	for _, record := range records {
-		if record.ID == 0 {
-			if record.Parent != 0 {
-				return nil, errors.New("root node has parent")
-			}
-			node := buildNode(record)
-			return node, nil
-		}
+		parentID := record.Parent
+		childNode := &Node{record.ID, nil}
+		childMap[parentID] = append(childMap[parentID], childNode)
 	}
-	return &Node{}, errors.New("no root node")
+	return childMap
 }
 
-func getChildren(parent int, allRecords []Record) []*Node {
+func getChildren(parent *Node, parentChild map[int][]*Node) []*Node {
 	var nodeArray []*Node
-	for _, child := range allRecords {
-		if child.Parent == parent && child.ID != parent {
-			node := buildNode(child)
-			node.Children = getChildren(node.ID, allRecords)
+	for _, child := range parentChild[parent.ID] {
+		if child.ID != parent.ID {
+			node := &Node{ID: child.ID}
+			node.Children = getChildren(node, parentChild)
 			nodeArray = append(nodeArray, node)
 		}
 	}
-	if len(nodeArray) == 0 {
-		return nil
-	}
-
 	return nodeArray
 }
 
 func errorCheck(records []Record) error {
-	duplicate := map[int]bool{}
-	for _, record := range records {
-		if duplicate[record.ID] == true {
-			if record.ID == 0 {
-				return errors.New("duplicate node")
-			}
-			return errors.New("duplicate root")
-		}
-		duplicate[record.ID] = true
-	}
-
 	for i, record := range records {
 		if i != record.ID {
 			return errors.New("non-contiguous")
@@ -96,9 +65,6 @@ func errorCheck(records []Record) error {
 		if record.ID < record.Parent {
 			return errors.New("higher id parent of lower id")
 		}
-	}
-
-	for _, record := range records {
 		originalRecord := record
 		for record.ID != 0 {
 			record = records[record.Parent]
@@ -107,6 +73,5 @@ func errorCheck(records []Record) error {
 			}
 		}
 	}
-
 	return nil
 }
