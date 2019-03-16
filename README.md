@@ -1,3 +1,5 @@
+Exercise freely available at https://exercism.io
+
 # Tree Building
 
 Some web-forums have a tree layout, so posts are presented as a tree. However
